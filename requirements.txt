@@ -1,3 +1,4 @@
 streamlit==1.10.0
 Pillow==9.2.0
 yfinance==0.1.70
+plotly==5.6.0
