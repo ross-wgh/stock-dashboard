@@ -11,28 +11,41 @@ st.write("# Stock Market Web App")
 
 
 #Create a sidebar
-st.sidebar.header('User Input')
+st.sidebar.header('User Input for five')
 
+#Time periods compatible with yfinance, eventually want to add a custom range
+time_periods = ("6mo", "1d", "5d", "1mo", "3mo", "1y", "2y", "5y", "10y", "ytd", "max", "custom")
+today = datetime.date.today()
+
+#@st.cache
+def load_data(ticker, period):
+    if period in time_periods:
+        data = yf.download(ticker, period = period)
+    else:
+        data = yf.download(ticker, period, today)
+    data.reset_index(inplace=True)
+    #This code removes the hh:mm:ss timestamp from date (unnecessary for time periods > 1 day)
+    data['Date'] = data['Date'].dt.date
+    return data
 
 #May want to cache this eventually
 def get_input():
     ticker = st.sidebar.text_input("Stock Ticker", "MSFT")
     display_bollinger_bands = st.sidebar.checkbox("Display Bollinger Bands?", False)
-    return ticker, display_bollinger_bands
+    time_period = st.sidebar.selectbox("Which time period?", time_periods)
+    if time_period == 'custom':
+        start = st.sidebar.date_input("Enter Start Date", today- datetime.timedelta(days = 2), max_value = today- datetime.timedelta(days = 1))
+        time_period = start
+
+    #If there is an invalid ticker, stop the program
+    if len(yf.download(ticker)) == 0:
+        st.exception(RuntimeError("Invalid Ticker Id"))
+        st.stop()
+
+    return ticker, display_bollinger_bands, time_period
 
 
-selected_stock, display_bands = get_input()
-
-
-#Time periods compatible with yfinance, eventually want to add a custom range
-time_periods = ("6mo", "1d", "5d", "1mo", "3mo", "1y", "2y", "5y", "10y", "ytd", "max")
-period = st.sidebar.selectbox("Which time period?", time_periods)
-
-
-#Custom RANGE code skeleton
-#if period == 'Custom':
-#    start_date = st.sidebar.text_input("Start Date", ENTER DATETIME OBJECT HERE)
-#    end_date = st.sidebar.text_input("End Date", ENTER DATETIME OBJECT HERE)
+selected_stock, display_bands, period = get_input()
 
 
 #Display Logo for stock, takes about 5 seconds to load image
@@ -45,29 +58,11 @@ def load_company_logo():
     image = Image.open("logo.png")
     st.image(image)
 
-try:
-    load_company_logo()
-except:
-    ##Load_company_logo does not work on index funds or non-corporate securities.
-    pass
-
-#Write logic for if ticker is not found, may need to do that at input step.
-#if len(stock_data) == 0:
-#    st.write("Make sure that the ticker is correct. No data for $" + selected_stock + " was found.")
-
-
-#@st.cache
-def load_data(ticker):
-    data = yf.download(ticker, period = period)
-    data.reset_index(inplace=True)
-    #This code removes the hh:mm:ss timestamp from date (unnecessary for time periods > 1 day)
-    data['Date'] = data['Date'].dt.date
-    return data
-
+load_company_logo()
 
 
 #data_load_state = st.text('Loading data...')
-stock_data = load_data(selected_stock)
+stock_data = load_data(selected_stock, period)
 #data_load_state.text('Loading data... done!')
 
 def calculate_bollinger_bands(data, n_lookback, n_std = 2):
@@ -76,12 +71,13 @@ def calculate_bollinger_bands(data, n_lookback, n_std = 2):
     std = hlc_avg.rolling(n_lookback).std()
     upper = mean + std * n_std
     lower = mean - std * n_std
-    return upper, lower
+    data['upper_band'], data['lower_band'] = upper, lower
+    return data
 
 if display_bands:
-    stock_data['upper_band'], stock_data['lower_band'] = calculate_bollinger_bands(stock_data, 10)
+    calculate_bollinger_bands(stock_data, 10)
 
-st.subheader('Trading Data for ' + stock_info.info['shortName'] + ' ($' + selected_stock+ ')')
+st.subheader('Trading Data for ' + stock_info.info['shortName'] + ' ($' + selected_stock.upper() + ')')
 st.write(stock_data)
 
 
@@ -98,5 +94,3 @@ def plot_raw_data(plot_bollinger_bands = display_bands):
 
 
 plot_raw_data()
-
-#st.subheader("Important Upcoming Dates")
