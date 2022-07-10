@@ -3,5 +3,5 @@ Pillow==9.2.0
 yfinance==0.1.70
 plotly==5.6.0
 matplotlib==3.5.1
-pystan==3.5.0
+pystan
 prophet==1.0.1
