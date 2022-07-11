@@ -4,6 +4,10 @@ App is available in-browser at: https://share.streamlit.io/ross-wgh/stock-dashbo
 
 ## Changelog
 
+### Version 2.1 7/11/2022
+- Displays stock prices starting with most recent dates (was sorted by date ascending before)
+- Fixed issue where some companies with invalid logos would lead to runtime error
+
 ### Version 2.0 7/10/2022
 - Added error handling for custom date picklist value
 - Added load time indicator
