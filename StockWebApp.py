@@ -82,8 +82,11 @@ def load_company_logo():
     image = Image.open("logo.png")
     st.image(image)
 
-load_company_logo()
-
+try:
+    load_company_logo()
+except:
+    #Image not found
+    pass
 
 stock_data = load_data(selected_stock, period)
 data_load_state.text('')
@@ -102,7 +105,6 @@ if display_bands:
     calculate_bollinger_bands(stock_data, 10)
 
 def compare_with_snp500(data, ticker):
-    #
     snp_data = load_data('^GSPC', period)
     data_to_plot = data.merge(snp_data, left_on = 'Date', right_on = 'Date')
     col_name =  ticker + "_pct_change"
@@ -110,10 +112,12 @@ def compare_with_snp500(data, ticker):
     data_to_plot['snp_pct_change'] = data_to_plot.Close_y.pct_change() * 100
     plot_raw_data(data_to_plot, False, col_name, 'snp_pct_change', title = 'Relative Performance compared to S&P 500')
 
-
+def display_data(data):
+    display = data.sort_values(by = ['Date'], ascending = False)
+    return display
 
 st.subheader('Trading Data for ' + stock_info.info['shortName'] + ' ($' + selected_stock.upper() + ')')
-st.write(stock_data)
+st.write(display_data(stock_data))
 
 
 # Plot raw data
@@ -156,8 +160,6 @@ if predict:
     st.info("Note: This is a very rough estimate given current trend of stock price and overall direction of markets.")
     model, forecast = build_prophet_model(stock_data, weeks)
     st.subheader("Stock Price Forecast with FBProphet")
-    #Need to filter out weekends because
-    st.write(forecast)
     fig1 = plot_plotly(model, forecast)
     st.plotly_chart(fig1)
     fig2 = model.plot_components(forecast)
