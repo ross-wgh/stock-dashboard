@@ -9,6 +9,7 @@ import datetime
 from prophet import Prophet
 from prophet.plot import plot_plotly
 
+
 def load_data(ticker, time_period):
     if time_period == '1d':
         data = yf.download(ticker, period=time_period, interval='1m')
@@ -89,7 +90,7 @@ def calculate_bollinger_bands(data, n_lookback, n_std = 2):
     return boll_data
 
 
-def plot_raw_data(data, plot_bollinger_bands = False, y_1 = 'Open', title = 'Price Chart with adjustable window', one_day = False):
+def plot_raw_data(data, plot_bollinger_bands = False, y_1 = 'Open', title = 'Price Chart with adjustable window', y_axis_title = 'Holding Price', one_day = False):
     fig = go.Figure()
     fig.add_trace(go.Scatter(x = data['Date'], y = data[y_1], name = y_1))
     if one_day:
@@ -100,7 +101,7 @@ def plot_raw_data(data, plot_bollinger_bands = False, y_1 = 'Open', title = 'Pri
         fig.add_trace(go.Scatter(x = data['Date'], y = data['lower_band'], name = 'lower_band',
                                  fill = 'tonexty', fillcolor = 'rgba(25,150,65,.1)', mode = 'lines',
                                  line_color = 'indigo', opacity = .1))
-    fig.layout.update(title_text= title, xaxis_rangeslider_visible=True, yaxis_title = 'Holding Price')
+    fig.layout.update(title_text= title, xaxis_rangeslider_visible=True, yaxis_title = y_axis_title)
     st.plotly_chart(fig)
 
 
@@ -137,7 +138,7 @@ def build_prophet_model(df, weeks_into_future):
     return model, forecast
 
 
-st.write("# Stock Market Web App")
+st.title("Stock Market Web App")
 st.caption("##### Click to view project on [GitHub](https://github.com/ross-wgh/stock-dashboard)")
 
 #Create a sidebar
@@ -163,30 +164,38 @@ except:
 stock_data = load_data(selected_stock, period)
 data_load_state.text('')
 
+def get_daily_max_min_volume(ticker):
+    min_max = yf.download(ticker, period='1d', interval='1m')
+    min_price = round(min(min_max.Open.min(), min_max.Close.min()),2)
+    max_price = round(max(min_max.Open.max(), min_max.Close.max()),2)
+
+    daily_vol = min_max.Volume.cumsum().iloc[-1]
+    vol_in_last_min = min_max.Volume.iloc[-2]
+    return min_price, max_price, daily_vol, vol_in_last_min
 
 col1, col2, col3 = st.columns(3)
+mmv = get_daily_max_min_volume(selected_stock)
 col1.metric("Price", value = "$" + str(stock_info.info['currentPrice']),
             delta = str(round(stock_info.info['currentPrice'] - stock_info.info['previousClose'],2)) +
                     " (" +
                     str(round((stock_info.info['currentPrice'] - stock_info.info['previousClose'])/stock_info.info['previousClose']*100,2)) + "%) today")
-col2.metric("Price", value = "$" + str(stock_info.info['currentPrice']),
-            delta = str(round(stock_info.info['currentPrice'] - stock_info.info['previousClose'],2)) +
-                    " (" +
-                    str(round((stock_info.info['currentPrice'] - stock_info.info['previousClose'])/stock_info.info['previousClose']*100,2)) + "%) today")
-col3.metric("Price", value = "$" + str(stock_info.info['currentPrice']),
-            delta = str(round(stock_info.info['currentPrice'] - stock_info.info['previousClose'],2)) +
-                    " (" +
-                    str(round((stock_info.info['currentPrice'] - stock_info.info['previousClose'])/stock_info.info['previousClose']*100,2)) + "%) today")
+col2.metric("Daily Volume", value = str(mmv[2]),
+            delta = str(mmv[3]) + " in last minute")
+col3.metric("Daily Price Range", value = str(mmv[0]) + "-" + str(mmv[1]),
+            delta = None)
+
 
 
 # Plot data
 if display_bands:
     plot_raw_data(calculate_bollinger_bands(stock_data, 10), True)
+    plot_raw_data(stock_data, y_1='Volume', title='Volume Chart with adjustable window')
 else:
     if period == '1d':
         plot_raw_data(stock_data, one_day=True)
     else:
         plot_raw_data(stock_data)
+        plot_raw_data(stock_data, y_1='Volume', title='Volume Chart with adjustable window', y_axis_title = 'Volume')
 
 st.subheader('Holding Profile')
 
@@ -197,7 +206,10 @@ with col1:
     st.write("Industry: " + stock_info.info['industry'])
 
 with col2:
-    st.write("Dividend Yield: " + str(round(stock_info.info['dividendYield'] * 100, 2)) + "%")
+    if stock_info.info['dividendYield'] is None:
+        st.write("Dividend Yield: " + "0.00" + "%")
+    else:
+        st.write("Dividend Yield: " + str(round(stock_info.info['dividendYield'] * 100, 2)) + "%")
     st.write("ebitdaMargins: " + str(stock_info.info['ebitdaMargins']))
 
 with col3:
