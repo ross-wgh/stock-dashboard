@@ -110,6 +110,7 @@ def get_prev_close_price(ticker):
     prev_price = prev.iloc[-2].Close
     return round(prev_price,2)
 
+
 def compare_with_snp500(data, ticker):
     snp_data = load_data('^GSPC', period)
     data_to_plot = data.merge(snp_data, left_on = 'Date', right_on = 'Date')
@@ -122,6 +123,17 @@ def compare_with_snp500(data, ticker):
 def display_data(data):
     display = data.sort_values(by = ['Date'], ascending = False)
     return display
+
+
+def get_daily_max_min_volume(ticker):
+    min_max = yf.download(ticker, period='1d', interval='1m')
+    min_price = round(min(min_max.Open.min(), min_max.Close.min()),2)
+    max_price = round(max(min_max.Open.max(), min_max.Close.max()),2)
+
+    daily_vol = min_max.Volume.cumsum().iloc[-1]
+    vol_in_last_min = min_max.Volume.iloc[-2]
+    return min_price, max_price, daily_vol, vol_in_last_min
+
 
 def build_prophet_model(df, weeks_into_future):
     #Want to add overall trends of markets to neural net
@@ -164,15 +176,6 @@ except:
 stock_data = load_data(selected_stock, period)
 data_load_state.text('')
 
-def get_daily_max_min_volume(ticker):
-    min_max = yf.download(ticker, period='1d', interval='1m')
-    min_price = round(min(min_max.Open.min(), min_max.Close.min()),2)
-    max_price = round(max(min_max.Open.max(), min_max.Close.max()),2)
-
-    daily_vol = min_max.Volume.cumsum().iloc[-1]
-    vol_in_last_min = min_max.Volume.iloc[-2]
-    return min_price, max_price, daily_vol, vol_in_last_min
-
 col1, col2, col3 = st.columns(3)
 mmv = get_daily_max_min_volume(selected_stock)
 col1.metric("Price", value = "$" + str(stock_info.info['currentPrice']),
@@ -183,8 +186,6 @@ col2.metric("Daily Volume", value = str(mmv[2]),
             delta = str(mmv[3]) + " in last minute")
 col3.metric("Daily Price Range", value = str(mmv[0]) + "-" + str(mmv[1]),
             delta = None)
-
-
 
 # Plot data
 if display_bands:
