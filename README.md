@@ -4,6 +4,13 @@ App is available in-browser at: https://share.streamlit.io/ross-wgh/stock-dashbo
 
 ## Changelog
 
+### Version 2.2 7/21/2022
+- Added price updates by minute when markets are open (available when '1d' time period is selected)
+- Added daily price change, daily volume, and daily price range metrics
+- Added previous close price to '1d' plot
+- Added daily volume plot
+- Added basic info about holding (sector, dividend yield, ebitda and profit margins)
+
 ### Version 2.1 7/11/2022
 - Displays stock prices starting with most recent dates (was sorted by date ascending before)
 - Fixed issue where some companies with invalid logos would lead to runtime error
@@ -25,9 +32,3 @@ App is available in-browser at: https://share.streamlit.io/ross-wgh/stock-dashbo
 ### Version 1.0 7/6/2022
 - Base version of app: ability to view price of share with a valid ticker from a picklist of dates.
 - Display companies logo and plot prices over time period with slider bar
-
-
-
-
-
-
