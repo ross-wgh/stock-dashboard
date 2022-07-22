@@ -9,34 +9,34 @@ import datetime
 from prophet import Prophet
 from prophet.plot import plot_plotly
 
-st.write("# Stock Market Web App")
-st.caption("##### Click to view project on [GitHub](https://github.com/ross-wgh/stock-dashboard)")
 
-#Create a sidebar
-st.sidebar.header('User Input')
-
-#Time periods compatible with yfinance, eventually want to add a custom range
-time_periods = ("6mo", "1d", "5d", "1mo", "3mo", "1y", "2y", "5y", "10y", "ytd", "max", "custom")
-today = datetime.date.today()
-
-data_load_state = st.text('Loading data...')
-
-#@st.cache
 def load_data(ticker, time_period):
-    if time_period in time_periods:
-        data = yf.download(ticker, period = period)
+    if time_period == '1d':
+        data = yf.download(ticker, period=time_period, interval='1m')
+        close_info = yf.download(ticker, period = '5d')
+    elif time_period in time_periods:
+        data = yf.download(ticker, period=time_period)
     else:
         data = yf.download(ticker, period, today)
     data.reset_index(inplace=True)
     #This code removes the hh:mm:ss timestamp from date (unnecessary for time periods > 1 day)
-    data['Date'] = data['Date'].dt.date
+    if time_period == '1d':
+        date = data['Datetime'].dt.strftime("%Y-%m-%d %H:%M")
+        data.insert(loc = 0, column = 'Date', value = date)
+        data = data.drop(columns = 'Datetime')
+        #cols = data.columns.tolist()
+        #cols = cols[-1:] + cols[:-1]
+        #data = data[cols]
+    else:
+        data['Date'] = data['Date'].dt.date
     return data
 
-#May want to cache this eventually
+
 def get_input():
     ticker = st.sidebar.text_input("Stock Ticker", "MSFT")
 
     time_period = st.sidebar.selectbox("Which time period?", time_periods)
+    display_bollinger_bands = False
     start = today
     predict_future = False
     prediction_period = 1
@@ -45,7 +45,8 @@ def get_input():
     if time_period == 'custom':
         start = st.sidebar.date_input("Enter Start Date", today- datetime.timedelta(days = 2), max_value = today- datetime.timedelta(days = 1))
 
-    display_bollinger_bands = st.sidebar.checkbox("Display Bollinger Bands?", False)
+    if today - start > datetime.timedelta(days = 45) or time_period not in ['1d','5d', 'custom']:
+        display_bollinger_bands = st.sidebar.checkbox("Display Bollinger Bands?", False)
 
     # Compare performance to S&P 500 index or something else with percentage changes if time period is longer than a day
     if (len(yf.download(ticker, start, today)) > 1) or (time_period not in  ['1d','custom']):
@@ -69,27 +70,14 @@ def get_input():
     return ticker, display_bollinger_bands, time_period, predict_future, prediction_period, compare
 
 
-selected_stock, display_bands, period, predict, weeks, snp = get_input()
-
-
-#Display Logo for stock, takes about 5 seconds to load image
-stock_info = yf.Ticker(selected_stock)
-def load_company_logo():
+def load_company_logo(stock_info):
     logo_url = stock_info.info['logo_url']
     urllib.request.urlretrieve(
       logo_url,
        "logo.png")
     image = Image.open("logo.png")
-    st.image(image)
+    return image
 
-try:
-    load_company_logo()
-except:
-    #Image not found
-    pass
-
-stock_data = load_data(selected_stock, period)
-data_load_state.text('')
 
 def calculate_bollinger_bands(data, n_lookback, n_std = 2):
     hlc_avg = (data.High + data.Low + data.Close)/3
@@ -97,12 +85,31 @@ def calculate_bollinger_bands(data, n_lookback, n_std = 2):
     std = hlc_avg.rolling(n_lookback).std()
     upper = mean + std * n_std
     lower = mean - std * n_std
-    data['upper_band'], data['lower_band'] = upper, lower
-    return data
+    boll_data = data
+    boll_data['upper_band'], boll_data['lower_band'] = upper, lower
+    return boll_data
 
 
-if display_bands:
-    calculate_bollinger_bands(stock_data, 10)
+def plot_raw_data(data, plot_bollinger_bands = False, y_1 = 'Open', title = 'Price Chart with adjustable window', y_axis_title = 'Holding Price', one_day = False):
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x = data['Date'], y = data[y_1], name = y_1))
+    if one_day:
+        fig.add_hline(y = get_prev_close_price(selected_stock), line_dash = 'dot', annotation_text = 'Previous close: ' + str(get_prev_close_price(selected_stock)))
+    if plot_bollinger_bands:
+        fig.add_trace(go.Scatter(x = data['Date'], y = data['upper_band'], name = 'upper_band',
+                                 fill = None, mode = 'lines', line_color = 'indigo', opacity = .1))
+        fig.add_trace(go.Scatter(x = data['Date'], y = data['lower_band'], name = 'lower_band',
+                                 fill = 'tonexty', fillcolor = 'rgba(25,150,65,.1)', mode = 'lines',
+                                 line_color = 'indigo', opacity = .1))
+    fig.layout.update(title_text= title, xaxis_rangeslider_visible=True, yaxis_title = y_axis_title)
+    st.plotly_chart(fig)
+
+
+def get_prev_close_price(ticker):
+    prev = yf.download(ticker, period = '5d')
+    prev_price = prev.iloc[-2].Close
+    return round(prev_price,2)
+
 
 def compare_with_snp500(data, ticker):
     snp_data = load_data('^GSPC', period)
@@ -112,33 +119,21 @@ def compare_with_snp500(data, ticker):
     data_to_plot['snp_pct_change'] = data_to_plot.Close_y.pct_change() * 100
     plot_raw_data(data_to_plot, False, col_name, 'snp_pct_change', title = 'Relative Performance compared to S&P 500')
 
+
 def display_data(data):
     display = data.sort_values(by = ['Date'], ascending = False)
     return display
 
-st.subheader('Trading Data for ' + stock_info.info['shortName'] + ' ($' + selected_stock.upper() + ')')
-st.write(display_data(stock_data))
 
+def get_daily_max_min_volume(ticker):
+    min_max = yf.download(ticker, period='1d', interval='1m')
+    min_price = round(min(min_max.Open.min(), min_max.Close.min()),2)
+    max_price = round(max(min_max.Open.max(), min_max.Close.max()),2)
 
-# Plot raw data
-def plot_raw_data(data, plot_bollinger_bands = display_bands, y_1 = 'Open', y_2 = 'Close', title = 'Price Chart with adjustable window'):
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x = data['Date'], y = data[y_1], name = y_1))
-    fig.add_trace(go.Scatter(x = data['Date'], y = data[y_2], name = y_2))
-    if plot_bollinger_bands:
-        fig.add_trace(go.Scatter(x = data['Date'], y = data['upper_band'], name = 'upper_band',
-                                 fill = None, mode = 'lines', line_color = 'indigo', opacity = .1))
-        fig.add_trace(go.Scatter(x = data['Date'], y = data['lower_band'], name = 'lower_band',
-                                 fill = 'tonexty', fillcolor = 'rgba(25,150,65,.1)', mode = 'lines',
-                                 line_color = 'indigo', opacity = .1))
-    fig.layout.update(title_text= title, xaxis_rangeslider_visible=True)
-    st.plotly_chart(fig)
+    daily_vol = min_max.Volume.cumsum().iloc[-1]
+    vol_in_last_min = min_max.Volume.iloc[-2]
+    return min_price, max_price, daily_vol, vol_in_last_min
 
-
-plot_raw_data(stock_data)
-
-if snp and period != '1d':
-    compare_with_snp500(stock_data, selected_stock.lower())
 
 def build_prophet_model(df, weeks_into_future):
     #Want to add overall trends of markets to neural net
@@ -154,6 +149,79 @@ def build_prophet_model(df, weeks_into_future):
     forecast = model.predict(future)
     return model, forecast
 
+
+st.title("Stock Market Web App")
+st.caption("##### Click to view project on [GitHub](https://github.com/ross-wgh/stock-dashboard)")
+
+#Create a sidebar
+st.sidebar.header('User Input')
+
+#Time periods compatible with yfinance, eventually want to add a custom range
+time_periods = ("6mo", "1d", "5d", "1mo", "3mo", "1y", "2y", "5y", "10y", "ytd", "max", "custom")
+today = datetime.date.today()
+
+data_load_state = st.text('Loading data...')
+
+selected_stock, display_bands, period, predict, weeks, snp = get_input()
+
+#Get metadata about holding
+stock_info = yf.Ticker(selected_stock)
+#Display Logo for stock, takes about 5 seconds to load image
+try:
+    st.image(load_company_logo(stock_info))
+except:
+    #Image not found
+    pass
+
+stock_data = load_data(selected_stock, period)
+data_load_state.text('')
+
+col1, col2, col3 = st.columns(3)
+mmv = get_daily_max_min_volume(selected_stock)
+col1.metric("Price", value = "$" + str(stock_info.info['currentPrice']),
+            delta = str(round(stock_info.info['currentPrice'] - stock_info.info['previousClose'],2)) +
+                    " (" +
+                    str(round((stock_info.info['currentPrice'] - stock_info.info['previousClose'])/stock_info.info['previousClose']*100,2)) + "%) today")
+col2.metric("Daily Volume", value = str(mmv[2]),
+            delta = str(mmv[3]) + " in last minute")
+col3.metric("Daily Price Range", value = str(mmv[0]) + "-" + str(mmv[1]),
+            delta = None)
+
+# Plot data
+if display_bands:
+    plot_raw_data(calculate_bollinger_bands(stock_data, 10), True)
+    plot_raw_data(stock_data, y_1='Volume', title='Volume Chart with adjustable window')
+else:
+    if period == '1d':
+        plot_raw_data(stock_data, one_day=True)
+    else:
+        plot_raw_data(stock_data)
+        plot_raw_data(stock_data, y_1='Volume', title='Volume Chart with adjustable window', y_axis_title = 'Volume')
+
+st.subheader('Holding Profile')
+
+#Put in container
+col1, col2, col3 = st.columns(3)
+with col1:
+    st.write("Sector: " + stock_info.info['sector'])
+    st.write("Industry: " + stock_info.info['industry'])
+
+with col2:
+    if stock_info.info['dividendYield'] is None:
+        st.write("Dividend Yield: " + "0.00" + "%")
+    else:
+        st.write("Dividend Yield: " + str(round(stock_info.info['dividendYield'] * 100, 2)) + "%")
+    st.write("ebitdaMargins: " + str(stock_info.info['ebitdaMargins']))
+
+with col3:
+    st.write("Website: " + stock_info.info['website'])
+    st.write("profitMargins: " + str(stock_info.info['profitMargins']))
+
+st.subheader('Trading Data for ' + stock_info.info['shortName'] + ' ($' + selected_stock.upper() + ')')
+st.write(display_data(stock_data))
+
+if snp and period != '1d':
+    compare_with_snp500(stock_data, selected_stock.lower())
 
 if predict:
     data_load_state.text('Training Neural Network...')
