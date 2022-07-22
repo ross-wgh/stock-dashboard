@@ -90,9 +90,11 @@ def calculate_bollinger_bands(data, n_lookback, n_std = 2):
     return boll_data
 
 
-def plot_raw_data(data, plot_bollinger_bands = False, y_1 = 'Open', title = 'Price Chart with adjustable window', y_axis_title = 'Holding Price', one_day = False):
+def plot_raw_data(data, plot_bollinger_bands = False, snp = False, y_1 = 'Open', title = 'Price Chart with adjustable window', y_axis_title = 'Holding Price', one_day = False):
     fig = go.Figure()
     fig.add_trace(go.Scatter(x = data['Date'], y = data[y_1], name = y_1))
+    if snp:
+        fig.add_trace(go.Scatter(x=data['Date'], y=data['snp_pct_change'], name=y_1))
     if one_day:
         fig.add_hline(y = get_prev_close_price(selected_stock), line_dash = 'dot', annotation_text = 'Previous close: ' + str(get_prev_close_price(selected_stock)))
     if plot_bollinger_bands:
@@ -110,20 +112,13 @@ def get_prev_close_price(ticker):
     prev_price = prev.iloc[-2].Close
     return round(prev_price,2)
 
-
 def compare_with_snp500(data, ticker):
     snp_data = load_data('^GSPC', period)
     data_to_plot = data.merge(snp_data, left_on = 'Date', right_on = 'Date')
     col_name =  ticker + "_pct_change"
     data_to_plot[col_name] = data_to_plot.Close_x.pct_change() * 100
     data_to_plot['snp_pct_change'] = data_to_plot.Close_y.pct_change() * 100
-    plot_raw_data(data_to_plot, False, col_name, 'snp_pct_change', title = 'Relative Performance compared to S&P 500')
-
-
-def display_data(data):
-    display = data.sort_values(by = ['Date'], ascending = False)
-    return display
-
+    plot_raw_data(data_to_plot, False, True, y_1 = col_name, title = 'Relative Performance compared to S&P 500')
 
 def get_daily_max_min_volume(ticker):
     min_max = yf.download(ticker, period='1d', interval='1m')
@@ -134,6 +129,32 @@ def get_daily_max_min_volume(ticker):
     vol_in_last_min = min_max.Volume.iloc[-2]
     return min_price, max_price, daily_vol, vol_in_last_min
 
+
+def get_meta_data(ticker_obj, attribute):
+    var = ticker_obj.info[attribute]
+    if attribute == 'dividendYield':
+        if var is not None:
+            var = str(round(var,2)*100)
+        else:
+            var = '0.00'
+        return var + '%'
+
+    if attribute == 'exDividendDate':
+        if var is not None:
+            var =  datetime.datetime.fromtimestamp(var).strftime("%b %d, %Y")
+        else:
+            var = 'N/A'
+        return var
+
+    if var is not None:
+        return var
+    else:
+        return ''
+
+
+def display_data(data):
+    display = data.sort_values(by = ['Date'], ascending = False)
+    return display
 
 def build_prophet_model(df, weeks_into_future):
     #Want to add overall trends of markets to neural net
@@ -203,19 +224,21 @@ st.subheader('Holding Profile')
 #Put in container
 col1, col2, col3 = st.columns(3)
 with col1:
-    st.write("Sector: " + stock_info.info['sector'])
-    st.write("Industry: " + stock_info.info['industry'])
+    st.write("Sector: " + get_meta_data(stock_info, 'sector'))
+    st.write("Industry: " + get_meta_data(stock_info, 'industry'))
+    st.write("Headquarters: " + get_meta_data(stock_info, 'city') + ', ' + get_meta_data(stock_info, 'state'))
 
 with col2:
-    if stock_info.info['dividendYield'] is None:
-        st.write("Dividend Yield: " + "0.00" + "%")
-    else:
-        st.write("Dividend Yield: " + str(round(stock_info.info['dividendYield'] * 100, 2)) + "%")
-    st.write("ebitdaMargins: " + str(stock_info.info['ebitdaMargins']))
+    st.write("Dividend Yield: " + get_meta_data(stock_info, 'dividendYield'))
+    st.write("Ex-Dividend Date: " + get_meta_data(stock_info, 'exDividendDate'))
+    st.write("Forward EPS: " + str(get_meta_data(stock_info, 'forwardEps')))
+    st.write("Trailing EPS: " + str(get_meta_data(stock_info, 'trailingEps')))
 
 with col3:
-    st.write("Website: " + stock_info.info['website'])
-    st.write("profitMargins: " + str(stock_info.info['profitMargins']))
+    st.write("Cash per Share: " + str(get_meta_data(stock_info, 'totalCashPerShare')))
+    st.write("Revenue per Share: " + str(get_meta_data(stock_info, 'revenuePerShare')))
+    st.write("Book Value: " + str(get_meta_data(stock_info, 'bookValue')))
+    st.write("Beta: " + str(get_meta_data(stock_info, 'beta')))
 
 st.subheader('Trading Data for ' + stock_info.info['shortName'] + ' ($' + selected_stock.upper() + ')')
 st.write(display_data(stock_data))
