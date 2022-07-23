@@ -197,16 +197,19 @@ except:
 stock_data = load_data(selected_stock, period)
 data_load_state.text('')
 
-col1, col2, col3 = st.columns(3)
-mmv = get_daily_max_min_volume(selected_stock)
-col1.metric("Price", value = "$" + str(stock_info.info['currentPrice']),
-            delta = str(round(stock_info.info['currentPrice'] - stock_info.info['previousClose'],2)) +
-                    " (" +
-                    str(round((stock_info.info['currentPrice'] - stock_info.info['previousClose'])/stock_info.info['previousClose']*100,2)) + "%) today")
-col2.metric("Daily Volume", value = str(mmv[2]),
-            delta = str(mmv[3]) + " in last minute")
-col3.metric("Daily Price Range", value = str(mmv[0]) + "-" + str(mmv[1]),
-            delta = None)
+try:
+    col1, col2, col3 = st.columns(3)
+    mmv = get_daily_max_min_volume(selected_stock)
+    col1.metric("Price", value = "$" + str(stock_info.info['currentPrice']),
+                delta = str(round(stock_info.info['currentPrice'] - stock_info.info['previousClose'],2)) +
+                        " (" +
+                        str(round((stock_info.info['currentPrice'] - stock_info.info['previousClose'])/stock_info.info['previousClose']*100,2)) + "%) today")
+    col2.metric("Daily Volume", value = str(mmv[2]),
+                delta = str(mmv[3]) + " in last minute")
+    col3.metric("Daily Price Range", value = str(mmv[0]) + "-" + str(mmv[1]),
+                delta = None)
+except:
+    pass
 
 # Plot data
 if display_bands:
@@ -219,26 +222,30 @@ else:
         plot_raw_data(stock_data)
         plot_raw_data(stock_data, y_1='Volume', title='Volume Chart with adjustable window', y_axis_title = 'Volume')
 
-st.subheader('Holding Profile')
 
-#Put in container
-col1, col2, col3 = st.columns(3)
-with col1:
-    st.write("Sector: " + get_meta_data(stock_info, 'sector'))
-    st.write("Industry: " + get_meta_data(stock_info, 'industry'))
-    st.write("Headquarters: " + get_meta_data(stock_info, 'city') + ', ' + get_meta_data(stock_info, 'state'))
+try:
+    st.subheader('Holding Profile')
 
-with col2:
-    st.write("Dividend Yield: " + get_meta_data(stock_info, 'dividendYield'))
-    st.write("Ex-Dividend Date: " + get_meta_data(stock_info, 'exDividendDate'))
-    st.write("Forward EPS: " + str(get_meta_data(stock_info, 'forwardEps')))
-    st.write("Trailing EPS: " + str(get_meta_data(stock_info, 'trailingEps')))
+    #Put in container
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.write("Sector: " + get_meta_data(stock_info, 'sector'))
+        st.write("Industry: " + get_meta_data(stock_info, 'industry'))
+        st.write("Headquarters: " + get_meta_data(stock_info, 'city') + ', ' + get_meta_data(stock_info, 'state'))
 
-with col3:
-    st.write("Cash per Share: " + str(get_meta_data(stock_info, 'totalCashPerShare')))
-    st.write("Revenue per Share: " + str(get_meta_data(stock_info, 'revenuePerShare')))
-    st.write("Book Value: " + str(get_meta_data(stock_info, 'bookValue')))
-    st.write("Beta: " + str(get_meta_data(stock_info, 'beta')))
+    with col2:
+        st.write("Dividend Yield: " + get_meta_data(stock_info, 'dividendYield'))
+        st.write("Ex-Dividend Date: " + get_meta_data(stock_info, 'exDividendDate'))
+        st.write("Forward EPS: " + str(get_meta_data(stock_info, 'forwardEps')))
+        st.write("Trailing EPS: " + str(get_meta_data(stock_info, 'trailingEps')))
+
+    with col3:
+        st.write("Cash per Share: " + str(get_meta_data(stock_info, 'totalCashPerShare')))
+        st.write("Revenue per Share: " + str(get_meta_data(stock_info, 'revenuePerShare')))
+        st.write("Book Value: " + str(get_meta_data(stock_info, 'bookValue')))
+        st.write("Beta: " + str(get_meta_data(stock_info, 'beta')))
+except:
+    pass
 
 st.subheader('Trading Data for ' + stock_info.info['shortName'] + ' ($' + selected_stock.upper() + ')')
 st.write(display_data(stock_data))
