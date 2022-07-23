@@ -188,6 +188,8 @@ selected_stock, display_bands, period, predict, weeks, snp = get_input()
 #Get metadata about holding
 stock_info = yf.Ticker(selected_stock)
 #Display Logo for stock, takes about 5 seconds to load image
+st.subheader('Overview of ' + stock_info.info['shortName'] + ' ($' + selected_stock.upper() + ')')
+
 try:
     st.image(load_company_logo(stock_info))
 except:
