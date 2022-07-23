@@ -4,6 +4,9 @@ App is available in-browser at: https://share.streamlit.io/ross-wgh/stock-dashbo
 
 ## Changelog
 
+### Version 2.3 7/22/2022
+- Added more information in holding profile (headquarters, ex-dividend date, EPS, cash/revenue per share, book value, beta)
+
 ### Version 2.2 7/21/2022
 - Added price updates by minute when markets are open (available when '1d' time period is selected)
 - Added daily price change, daily volume, and daily price range metrics
