@@ -94,7 +94,7 @@ def plot_raw_data(data, plot_bollinger_bands = False, snp = False, y_1 = 'Open',
     fig = go.Figure()
     fig.add_trace(go.Scatter(x = data['Date'], y = data[y_1], name = y_1))
     if snp:
-        fig.add_trace(go.Scatter(x=data['Date'], y=data['snp_pct_change'], name=y_1))
+        fig.add_trace(go.Scatter(x=data['Date'], y=data['snp_pct_change'], name='s&p500_pct_change'))
     if one_day:
         fig.add_hline(y = get_prev_close_price(selected_stock), line_dash = 'dot', annotation_text = 'Previous close: ' + str(get_prev_close_price(selected_stock)))
     if plot_bollinger_bands:
