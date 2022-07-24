@@ -9,6 +9,7 @@ import datetime
 from prophet import Prophet
 from prophet.plot import plot_plotly
 
+st.set_page_config(page_title="Stock Market Web App", page_icon=":chart_with_upwards_trend:")
 
 def load_data(ticker, time_period):
     if time_period == '1d':
