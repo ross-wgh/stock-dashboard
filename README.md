@@ -1,7 +1,7 @@
 # Stock Dashboard App
 
 App is available in-browser at: https://share.streamlit.io/ross-wgh/stock-dashboard/main/StockWebApp.py
-
+I wrote an accompanying article to give more information and some insight into why I made it. It can be found at: https://rosswoleben.com/projects/stock-web-app
 ## Changelog
 
 ### Version 2.3 7/22/2022
